@@ -633,6 +633,9 @@ async function fetchFollowersByUsername(username, sessionId) {
   };
 }
 
+const TIKTOK_BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 async function fetchTikTokFollowersByUsername(username) {
   const endpoint = "https://www.tikwm.com/api/user/info";
   let apiError;
@@ -640,8 +643,10 @@ async function fetchTikTokFollowersByUsername(username) {
     const response = await axios.get(endpoint, {
       params: { unique_id: username },
       headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "application/json",
+        "User-Agent": TIKTOK_BROWSER_UA,
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://www.tikwm.com/",
       },
       timeout: 15000,
       validateStatus: () => true,
@@ -671,9 +676,10 @@ async function fetchTikTokFollowersByUsername(username) {
       `https://www.tiktok.com/@${encodeURIComponent(username)}`,
       {
         headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          Accept: "text/html",
+          "User-Agent": TIKTOK_BROWSER_UA,
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Upgrade-Insecure-Requests": "1",
         },
         timeout: 15000,
         validateStatus: () => true,
@@ -706,11 +712,16 @@ async function fetchTikTokFollowersByUsername(username) {
 }
 
 function parseTikTokProfileHtml(html, username) {
-  const dataMatch = String(html || "").match(
-    /<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i
-  );
+  const source = String(html || "");
+  const dataMatch =
+    source.match(
+      /<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i
+    ) || source.match(/<script[^>]+id=["']SIGI_STATE["'][^>]*>([\s\S]*?)<\/script>/i);
   if (!dataMatch?.[1]) {
-    throw new Error("data profil tidak ditemukan pada halaman publik");
+    const title = source.match(/<title>([^<]*)<\/title>/i)?.[1]?.trim();
+    throw new Error(
+      `data profil tidak ditemukan pada halaman publik (${source.length} byte${title ? `, title: "${title.slice(0, 60)}"` : ""}; kemungkinan diblokir/captcha TikTok)`
+    );
   }
 
   const pageData = JSON.parse(dataMatch[1]);
