@@ -8,6 +8,7 @@ RUN npm ci --omit=dev --no-audit --no-fund
 COPY . .
 
 ENV NODE_ENV=production
+ENV USE_PLAYWRIGHT=true
 ENV PORT=3000
 
 EXPOSE 3000

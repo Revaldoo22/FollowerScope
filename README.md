@@ -9,6 +9,8 @@ Backend: Node.js (Express)
    npm install
 2. Install Chromium for local browser-based profile scraping:
    npx playwright install chromium
+   Lalu set `USE_PLAYWRIGHT=true` di `.env` (Dockerfile sudah mengaktifkannya).
+   TikTok memblokir request tanpa browser (TikWM 403 / captcha), jadi fallback browser ini diperlukan.
 3. Copy env:
    copy .env.example .env
 4. (Opsional, untuk IG content views lebih akurat) isi `INSTAGRAM_SESSIONID` di `.env`
