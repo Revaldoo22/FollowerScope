@@ -44,8 +44,8 @@ Response sukses (contoh):
       "status": "ok",
       "username": "dollievu.____",
       "fullName": "Berlian ??",
-      "bio": "??:° ...",
-      "biography": "??:° ...",
+      "bio": "??:ï¿½ ...",
+      "biography": "??:ï¿½ ...",
       "url": "https://pmb.stekom.ac.id/11726SMANEGERI1KRAMATTEGAL",
       "isPrivate": false,
       "isVerified": false,
@@ -66,6 +66,7 @@ Deskripsi:
 - Ambil followers profile TikTok.
 - Mendukung input username dan URL profil.
 - Diproses sequential (1 per 1).
+- Menggunakan `tikwm` terlebih dahulu, lalu mencoba data halaman profil publik TikTok jika API tersebut gagal.
 
 Request body:
 ```json

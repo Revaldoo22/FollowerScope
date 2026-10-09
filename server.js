@@ -635,34 +635,150 @@ async function fetchFollowersByUsername(username, sessionId) {
 
 async function fetchTikTokFollowersByUsername(username) {
   const endpoint = "https://www.tikwm.com/api/user/info";
-  const response = await axios.get(endpoint, {
-    params: { unique_id: username },
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      Accept: "application/json",
-    },
-    timeout: 15000,
-    validateStatus: () => true,
-  });
+  let apiError;
+  try {
+    const response = await axios.get(endpoint, {
+      params: { unique_id: username },
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "application/json",
+      },
+      timeout: 15000,
+      validateStatus: () => true,
+    });
 
-  if (response.status >= 400) {
-    throw new Error("Gagal mengambil profil TikTok");
+    const body = response.data || {};
+    if (
+      response.status < 400 &&
+      body.code === 0 &&
+      body.data?.user &&
+      body.data?.stats
+    ) {
+      return normalizeTikTokFollowerResult(body.data.user, body.data.stats, username);
+    }
+
+    apiError =
+      response.status >= 400
+        ? `TikWM merespons HTTP ${response.status}`
+        : body.msg || "TikWM tidak mengembalikan data profil yang valid";
+  } catch (error) {
+    apiError = `request ke TikWM gagal: ${error.message}`;
   }
 
-  const body = response.data || {};
-  if (body.code !== 0 || !body.data?.user || !body.data?.stats) {
-    throw new Error("Username tidak ditemukan");
+  let profileError;
+  try {
+    const profileResponse = await axios.get(
+      `https://www.tiktok.com/@${encodeURIComponent(username)}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "text/html",
+        },
+        timeout: 15000,
+        validateStatus: () => true,
+      }
+    );
+
+    if (profileResponse.status >= 400) {
+      throw new Error(`halaman profil merespons HTTP ${profileResponse.status}`);
+    }
+
+    return parseTikTokProfileHtml(profileResponse.data, username);
+  } catch (error) {
+    profileError = error.message;
   }
 
-  const user = body.data.user;
-  const stats = body.data.stats;
+  try {
+    if (process.env.USE_PLAYWRIGHT !== "true") {
+      throw new Error("dinonaktifkan (set USE_PLAYWRIGHT=true untuk mengaktifkan)");
+    }
+    const profile = await fetchTikTokProfileFromBrowser(username);
+    return normalizeTikTokFollowerResult(profile.user, profile.stats, username);
+  } catch (error) {
+    const browserError = /Executable doesn't exist/i.test(error.message)
+      ? "Chromium Playwright belum terpasang; jalankan `npx playwright install chromium`"
+      : error.message;
+    throw new Error(
+      `Gagal mengambil profil TikTok. TikWM: ${apiError}; HTTP: ${profileError}; browser: ${browserError}`
+    );
+  }
+}
 
+function parseTikTokProfileHtml(html, username) {
+  const dataMatch = String(html || "").match(
+    /<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i
+  );
+  if (!dataMatch?.[1]) {
+    throw new Error("data profil tidak ditemukan pada halaman publik");
+  }
+
+  const pageData = JSON.parse(dataMatch[1]);
+  const profile = findTikTokUserInfo(pageData, username);
+  if (!profile) {
+    throw new Error("statistik profil tidak ditemukan pada halaman publik");
+  }
+  return profile;
+}
+
+async function fetchTikTokProfileFromBrowser(username) {
+  const { chromium } = require("playwright");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    });
+    const profileUrl = `https://www.tiktok.com/@${encodeURIComponent(username)}`;
+    await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 25000 });
+    await page.waitForFunction(
+      () =>
+        document.getElementById("__UNIVERSAL_DATA_FOR_REHYDRATION__")?.textContent,
+      null,
+      { timeout: 10000 }
+    );
+    const html = await page.content();
+    return parseTikTokProfileHtml(html, username);
+  } finally {
+    await browser.close();
+  }
+}
+
+function findTikTokUserInfo(payload, username) {
+  if (!payload || typeof payload !== "object") return null;
+
+  const user = payload.userInfo?.user || payload.user;
+  const stats = payload.userInfo?.stats || payload.stats;
+  if (
+    user &&
+    stats &&
+    typeof user.uniqueId === "string" &&
+    user.uniqueId.toLowerCase() === username.toLowerCase() &&
+    Number.isFinite(Number(stats.followerCount))
+  ) {
+    return { user, stats };
+  }
+
+  for (const value of Object.values(payload)) {
+    if (value && typeof value === "object") {
+      const found = findTikTokUserInfo(value, username);
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
+function normalizeTikTokFollowerResult(user, stats, fallbackUsername) {
   return {
-    username: user.uniqueId || username,
+    username: user.uniqueId || fallbackUsername,
     fullName: user.nickname || "-",
     bio: user.signature || "-",
     biography: user.signature || "-",
-    url: user.bioLink?.link || user.bio_link || `https://www.tiktok.com/@${user.uniqueId || username}`,
+    url:
+      user.bioLink?.link ||
+      user.bio_link ||
+      `https://www.tiktok.com/@${user.uniqueId || fallbackUsername}`,
     isPrivate: null,
     isVerified: Boolean(user.verified),
     followers: Number(stats.followerCount || 0),

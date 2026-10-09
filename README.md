@@ -7,12 +7,14 @@ Backend: Node.js (Express)
 
 1. Install dependency:
    npm install
-2. Copy env:
+2. Install Chromium for local browser-based profile scraping:
+   npx playwright install chromium
+3. Copy env:
    copy .env.example .env
-3. (Opsional, untuk IG content views lebih akurat) isi `INSTAGRAM_SESSIONID` di `.env`
-4. Jalankan server:
+4. (Opsional, untuk IG content views lebih akurat) isi `INSTAGRAM_SESSIONID` di `.env`
+5. Jalankan server:
    npm start
-5. Buka browser:
+6. Buka browser:
    http://localhost:3000
 
 ## Format input
@@ -40,7 +42,7 @@ https://www.tiktok.com/@user/video/1234567890123456789
 - Tool ini hanya untuk data publik.
 - Jangan dipakai untuk spam atau aktivitas yang melanggar kebijakan platform.
 - Instagram dan TikTok bisa mengubah endpoint sewaktu-waktu.
-- Untuk TikTok, project ini menggunakan sumber data publik via `tikwm`.
+- Untuk TikTok, project ini menggunakan `tikwm` dengan fallback ke data profil publik TikTok jika `tikwm` tidak tersedia.
 - Endpoint IG Content Views: `POST /api/instagram/content-views`.
 - Endpoint TikTok Content Views: `POST /api/tiktok/content-views`.
 - Jika `views` tidak muncul, isi `INSTAGRAM_SESSIONID` (akun login yang memang bisa melihat angka views).

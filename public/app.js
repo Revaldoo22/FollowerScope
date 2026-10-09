@@ -506,7 +506,18 @@ async function fetchWithRetry(platform, chunk, batchIndex, totalBatches) {
         }),
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (_) {
+        throw new Error(`Respons server bukan JSON yang valid (HTTP ${res.status})`);
+      }
+
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        throw new Error(`Respons server kosong atau tidak valid (HTTP ${res.status})`);
+      }
+
       if (!res.ok) {
         throw new Error(data.error || "Gagal memproses request");
       }
