@@ -703,7 +703,11 @@ async function fetchTikTokFollowersByUsername(username) {
     return normalizeTikTokFollowerResult(profile.user, profile.stats, username);
   } catch (error) {
     const browserError = /Executable doesn't exist/i.test(error.message)
-      ? "Chromium Playwright belum terpasang; jalankan `npx playwright install chromium`"
+      ? `Chromium Playwright belum terpasang; jalankan \`npx playwright install chromium\` (${error.message
+          .split("\n")[0]
+          .trim()}; playwright ${require("playwright/package.json").version}; PLAYWRIGHT_BROWSERS_PATH=${
+          process.env.PLAYWRIGHT_BROWSERS_PATH || "-"
+        })`
       : error.message;
     throw new Error(
       `Gagal mengambil profil TikTok. TikWM: ${apiError}; HTTP: ${profileError}; browser: ${browserError}`
