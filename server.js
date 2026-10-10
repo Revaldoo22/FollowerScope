@@ -690,7 +690,8 @@ async function fetchTikTokFollowersByUsername(username) {
       throw new Error(`halaman profil merespons HTTP ${profileResponse.status}`);
     }
 
-    return parseTikTokProfileHtml(profileResponse.data, username);
+    const profile = parseTikTokProfileHtml(profileResponse.data, username);
+    return normalizeTikTokFollowerResult(profile.user, profile.stats, username);
   } catch (error) {
     profileError = error.message;
   }
